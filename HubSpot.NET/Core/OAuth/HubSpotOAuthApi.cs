@@ -89,9 +89,10 @@
                     builder.Append($"%20{OAuthScopeNameConversions[scope]}");
             }
 
-            RestRequest request = new RestRequest(MidRoute)
+            RestRequest request = new RestRequest(MidRoute, Method.Post)
             {
-                JsonSerializer = new FakeSerializer()
+                RequestFormat = DataFormat.Json
+//                JsonSerializer = new FakeSerializer()
             };
 
             Dictionary<string, string> jsonPreStringPairs = JsonConvert.DeserializeObject<Dictionary<string, string>>(JsonConvert.SerializeObject(model));
@@ -111,15 +112,25 @@
             if (builder.Length > 0)
                 request.AddQueryParameter("scope", builder.ToString());
 
-            IRestResponse<HubSpotToken> serverReponse = client.Post<HubSpotToken>(request);
+            /*IRestResponse<HubSpotToken>*/
+            try
+            {
+                var serverReponse = client.Execute<HubSpotToken>(request);
+//                var serverReponse = client.Post<HubSpotToken>(request);
+//            var serverReponse = client.Post(request);
 
-            if (serverReponse.ResponseStatus != ResponseStatus.Completed)
-                throw new HubSpotException("Server did not respond to authorization request. Content: " + serverReponse.Content, new HubSpotError(serverReponse.StatusCode, serverReponse.Content), serverReponse.Content);
+                if (serverReponse.ResponseStatus != ResponseStatus.Completed)
+                    throw new HubSpotException("Server did not respond to authorization request. Content: " + serverReponse.Content, new HubSpotError(serverReponse.StatusCode, serverReponse.Content), serverReponse.Content);
 
-            if (serverReponse.StatusCode == System.Net.HttpStatusCode.BadRequest)
-                throw new HubSpotException("Error generating authentication token.", JsonConvert.DeserializeObject<HubSpotError>(serverReponse.Content), serverReponse.Content);
+                if (serverReponse.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    throw new HubSpotException("Error generating authentication token.", JsonConvert.DeserializeObject<HubSpotError>(serverReponse.Content), serverReponse.Content);
 
-            return serverReponse.Data;
+                return serverReponse.Data;
+            }
+            catch
+            {
+                throw new HubSpotException("Server did not respond to authorization request");
+            }
         }
     }
 }
